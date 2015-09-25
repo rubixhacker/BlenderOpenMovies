@@ -80,7 +80,6 @@ public class PlaybackOverlayFragment extends android.support.v17.leanback.app.Pl
 
     private ArrayObjectAdapter mRowsAdapter;
     private ArrayObjectAdapter mPrimaryActionsAdapter;
-    private ArrayObjectAdapter mSecondaryActionsAdapter;
     private PlayPauseAction mPlayPauseAction;
     private FastForwardAction mFastForwardAction;
     private RewindAction mRewindAction;
@@ -241,9 +240,7 @@ public class PlaybackOverlayFragment extends android.support.v17.leanback.app.Pl
 
         ControlButtonPresenterSelector presenterSelector = new ControlButtonPresenterSelector();
         mPrimaryActionsAdapter = new ArrayObjectAdapter(presenterSelector);
-        mSecondaryActionsAdapter = new ArrayObjectAdapter(presenterSelector);
         mPlaybackControlsRow.setPrimaryActionsAdapter(mPrimaryActionsAdapter);
-        mPlaybackControlsRow.setSecondaryActionsAdapter(mSecondaryActionsAdapter);
 
         mPlayPauseAction = new PlayPauseAction(sContext);
         mSkipNextAction = new PlaybackControlsRow.SkipNextAction(sContext);
@@ -260,18 +257,10 @@ public class PlaybackOverlayFragment extends android.support.v17.leanback.app.Pl
             mPrimaryActionsAdapter.add(new PlaybackControlsRow.FastForwardAction(sContext));
         }
         mPrimaryActionsAdapter.add(mSkipNextAction);
-
-        mSecondaryActionsAdapter.add(new PlaybackControlsRow.HighQualityAction(sContext));
-        mSecondaryActionsAdapter.add(new PlaybackControlsRow.ClosedCaptioningAction(sContext));
     }
 
     private void notifyChanged(Action action) {
         ArrayObjectAdapter adapter = mPrimaryActionsAdapter;
-        if (adapter.indexOf(action) >= 0) {
-            adapter.notifyArrayItemRangeChanged(adapter.indexOf(action), 1);
-            return;
-        }
-        adapter = mSecondaryActionsAdapter;
         if (adapter.indexOf(action) >= 0) {
             adapter.notifyArrayItemRangeChanged(adapter.indexOf(action), 1);
             return;

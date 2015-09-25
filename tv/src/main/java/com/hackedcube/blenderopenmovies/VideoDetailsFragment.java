@@ -56,8 +56,6 @@ public class VideoDetailsFragment extends DetailsFragment {
     private static final String TAG = "VideoDetailsFragment";
 
     private static final int ACTION_WATCH_TRAILER = 1;
-    private static final int ACTION_RENT = 2;
-    private static final int ACTION_BUY = 3;
 
     private static final int DETAIL_THUMB_WIDTH = 274;
     private static final int DETAIL_THUMB_HEIGHT = 274;

@@ -41,9 +41,9 @@ public final class MovieList {
 
         String videoUrl[] = {
                 "https://archive.org/download/ElephantsDream/ed_hd.mp4",
-                "http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_stereo.avi",
-                "http://peach.themazzone.com/durian/movies/sintel-2048-surround.mp4",
-                "http://media.xiph.org/mango/tears_of_steel_1080p.webm"
+                "https://archive.org/download/BigBuckBunny_328/BigBuckBunny_512kb.mp4",
+                "https://archive.org/download/Sintel/sintel-2048-surround_512kb.mp4",
+                "https://archive.org/download/Tears-of-Steel/tears_of_steel_1080p.mp4"
         };
         String bgImageUrl[] = {
                 "https://orange.blender.org/wp-content/themes/orange/images/media/gallery/s2_bridge.jpg",

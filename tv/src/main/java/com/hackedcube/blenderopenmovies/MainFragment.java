@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import android.content.Intent;
 import android.graphics.Color;
@@ -54,46 +55,39 @@ import com.bumptech.glide.request.target.SimpleTarget;
 import com.hackedcube.Movie;
 import com.hackedcube.MovieList;
 
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action1;
+import rx.functions.Func1;
+import rx.schedulers.Schedulers;
+import rx.subjects.PublishSubject;
+
 public class MainFragment extends BrowseFragment {
-    private static final String TAG = "MainFragment";
 
-    private static final int BACKGROUND_UPDATE_DELAY = 300;
-    private static final int GRID_ITEM_WIDTH = 200;
-    private static final int GRID_ITEM_HEIGHT = 200;
-    private static final int NUM_ROWS = 2;
+    public static final String TAG = MainFragment.class.getSimpleName();
 
-    private final Handler mHandler = new Handler();
     private ArrayObjectAdapter mRowsAdapter;
-    private Drawable mDefaultBackground;
-    private DisplayMetrics mMetrics;
-    private Timer mBackgroundTimer;
-    private URI mBackgroundURI;
     private BackgroundManager mBackgroundManager;
+    private DisplayMetrics mMetrics;
+    private PublishSubject<URI> mURIPublishSubject;
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         Log.i(TAG, "onCreate");
         super.onActivityCreated(savedInstanceState);
 
-        prepareBackgroundManager();
+        mURIPublishSubject = PublishSubject.create();
 
-        setupUIElements();
+        setupBackgroundManager();
 
-        loadRows();
+        themeUI();
+
+        initRows();
 
         setupEventListeners();
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (null != mBackgroundTimer) {
-            Log.d(TAG, "onDestroy: " + mBackgroundTimer.toString());
-            mBackgroundTimer.cancel();
-        }
-    }
-
-    private void loadRows() {
+    private void initRows() {
         List<Movie> list = MovieList.setupMovies();
 
         mRowsAdapter = new ArrayObjectAdapter(new ListRowPresenter());
@@ -114,19 +108,9 @@ public class MainFragment extends BrowseFragment {
         mRowsAdapter.add(new ListRow(gridHeader, gridRowAdapter));
 
         setAdapter(mRowsAdapter);
-
     }
 
-    private void prepareBackgroundManager() {
-
-        mBackgroundManager = BackgroundManager.getInstance(getActivity());
-        mBackgroundManager.attach(getActivity().getWindow());
-        mDefaultBackground = getResources().getDrawable(R.drawable.default_background);
-        mMetrics = new DisplayMetrics();
-        getActivity().getWindowManager().getDefaultDisplay().getMetrics(mMetrics);
-    }
-
-    private void setupUIElements() {
+    private void themeUI() {
         // setBadgeDrawable(getActivity().getResources().getDrawable(
         // R.drawable.videos_by_google_banner));
         setTitle(getString(R.string.browse_title)); // Badge, when set, takes precedent
@@ -139,6 +123,47 @@ public class MainFragment extends BrowseFragment {
         // set search icon color
         setSearchAffordanceColor(ContextCompat.getColor(getActivity(), R.color.search_opaque));
     }
+
+    private void setupBackgroundManager() {
+        mBackgroundManager = BackgroundManager.getInstance(getActivity());
+        mBackgroundManager.attach(getActivity().getWindow());
+//        mDefaultBackground = ContextCompat.getDrawable(getActivity(), );
+        mMetrics = new DisplayMetrics();
+        getActivity().getWindowManager().getDefaultDisplay().getMetrics(mMetrics);
+
+
+        mURIPublishSubject.asObservable()
+                .map(new Func1<URI, String>() {
+                    @Override
+                    public String call(URI uri) {
+                        return uri.toString();
+                    }
+                })
+                .startWith("")
+                .debounce(500, TimeUnit.MILLISECONDS)
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Action1<String>() {
+                    @Override
+                    public void call(String uri) {
+                        int width = mMetrics.widthPixels;
+                        int height = mMetrics.heightPixels;
+                        Glide.with(getActivity())
+                                .load(uri)
+                                .centerCrop()
+                                .error(R.drawable.default_background)
+                                .into(new SimpleTarget<GlideDrawable>(width, height) {
+                                    @Override
+                                    public void onResourceReady(GlideDrawable resource,
+                                                                GlideAnimation<? super GlideDrawable>
+                                                                        glideAnimation) {
+                                        mBackgroundManager.setDrawable(resource);
+                                    }
+                                });
+                    }
+                });
+    }
+
 
     private void setupEventListeners() {
         setOnSearchClickedListener(new View.OnClickListener() {
@@ -187,63 +212,21 @@ public class MainFragment extends BrowseFragment {
         public void onItemSelected(Presenter.ViewHolder itemViewHolder, Object item,
                                    RowPresenter.ViewHolder rowViewHolder, Row row) {
             if (item instanceof Movie) {
-                mBackgroundURI = ((Movie) item).getBackgroundImageURI();
-                startBackgroundTimer();
+                mURIPublishSubject.onNext(((Movie) item).getBackgroundImageURI());
             }
 
         }
     }
 
-    protected void updateBackground(String uri) {
-        int width = mMetrics.widthPixels;
-        int height = mMetrics.heightPixels;
-        Glide.with(getActivity())
-                .load(uri)
-                .centerCrop()
-                .error(mDefaultBackground)
-                .into(new SimpleTarget<GlideDrawable>(width, height) {
-                    @Override
-                    public void onResourceReady(GlideDrawable resource,
-                                                GlideAnimation<? super GlideDrawable>
-                                                        glideAnimation) {
-                        mBackgroundManager.setDrawable(resource);
-                    }
-                });
-        mBackgroundTimer.cancel();
-    }
-
-    private void startBackgroundTimer() {
-        if (null != mBackgroundTimer) {
-            mBackgroundTimer.cancel();
-        }
-        mBackgroundTimer = new Timer();
-        mBackgroundTimer.schedule(new UpdateBackgroundTask(), BACKGROUND_UPDATE_DELAY);
-    }
-
-    private class UpdateBackgroundTask extends TimerTask {
-
-        @Override
-        public void run() {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (mBackgroundURI != null) {
-                        updateBackground(mBackgroundURI.toString());
-                    }
-                }
-            });
-
-        }
-    }
 
     private class GridItemPresenter extends Presenter {
         @Override
         public ViewHolder onCreateViewHolder(ViewGroup parent) {
             TextView view = new TextView(parent.getContext());
-            view.setLayoutParams(new ViewGroup.LayoutParams(GRID_ITEM_WIDTH, GRID_ITEM_HEIGHT));
+            view.setLayoutParams(new ViewGroup.LayoutParams(200, 200));
             view.setFocusable(true);
             view.setFocusableInTouchMode(true);
-            view.setBackgroundColor(getResources().getColor(R.color.default_background));
+            view.setBackgroundColor(ContextCompat.getColor(getActivity(), R.color.default_background));
             view.setTextColor(Color.WHITE);
             view.setGravity(Gravity.CENTER);
             return new ViewHolder(view);
@@ -258,5 +241,4 @@ public class MainFragment extends BrowseFragment {
         public void onUnbindViewHolder(ViewHolder viewHolder) {
         }
     }
-
 }
